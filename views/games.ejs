@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title><%= title %></title>
+    <link rel='stylesheet' href='/stylesheets/style.css' />
+  </head>
+  <body>
+    <form action="/summoner" method="POST">
+      <input type="text" name="summonerName" value="<%= summonerName %>" placeholder="소환사명" required />
+      <input type="submit" value="Search" />
+    </form>
+    <hr/>
+    
+    <% for(var g in games){ %>
+    <p>
+      <%= games[g].gameId %>번 게임 <a href="/match/<%= games[g].gameId %>">보기</a>
+    </p>
+    <% } %>
+  </body>
+</html>

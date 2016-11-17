@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title><%= title %></title>
+    <link rel='stylesheet' href='/stylesheets/style.css' />
+    
+    <script src="https://code.createjs.com/easeljs-0.8.2.min.js"></script>
+    <script src="https://code.createjs.com/tweenjs-0.6.2.min.js"></script>
+    <script>
+        var timeline = JSON.parse('<%- JSON.stringify(timeline) %>');
+        var timeIndex = 0;
+        var champs = {};
+        var stage;
+        
+        var curTimestamp = 0;
+        
+        function changeTimestamp(index){
+            var curt = timeline[1][index].timestamp;
+            curTimestamp = Math.floor(curt / 60000);
+            totalTimestamp = timeline[1].length - 1;
+            
+            document.getElementById('curTimestamp').innerHTML
+                = curTimestamp +'분 / ' + totalTimestamp +'분'
+                + '(' + Math.round(curTimestamp/totalTimestamp*100*100)/100 + '%)';
+        }
+        
+        function canvPos(obj){
+            if( typeof obj != 'object' ) return {};
+            
+            var canv = document.getElementById('demoCanvas'); 
+            var width = canv.width, height = canv.height;
+            
+            return {
+                x: (obj.x * width / 15000) - 6,
+                y: height - (obj.y * height / 15000) - 6
+            };
+        }
+        
+        function movingAll(index){
+            console.log(index);
+            for(var i=1; i<=10; ++i){
+                tween(i, champs[i], canvPos(timeline[i][index].position));
+            }
+            changeTimestamp(index);
+        }
+        
+        var tweenAnim = {};
+        
+        function tween(id, el, nextPos){
+            if(tweenAnim[id]) tweenAnim[id].setPaused(true);
+            tweenAnim[id] = createjs.Tween.get(el, { loop: false })
+                .to({ x: nextPos.x, y: nextPos.y }, 1000, createjs.Ease.getPowInOut(4));
+            stage.update();
+        }
+        
+        function champColor(index){
+            return ['#F47983', '#89C4F4'][Math.floor(index/5)];
+        }
+        
+        function init() {
+            stage = new createjs.Stage("demoCanvas");
+            
+            createjs.Ticker.addEventListener("tick", stage);
+            createjs.Ticker.setFPS(60);
+            
+            var image = new Image();
+            image.src = "/images/map_512x512.jpg";
+            image.onload = function(event){
+                var image = event.target;
+                var bitmap = new createjs.Bitmap(image);
+                stage.addChild(bitmap);
+                stage.setChildIndex(bitmap, 0);
+                stage.update();
+            };
+            
+            for(var i=1; i<=10; ++i){
+                var champId = ([1, 2])[Math.floor(Math.random()*2)];
+                var champImage = new Image();
+                champImage.onload = function(stage, icons, idx, position){
+                    icons[idx] = new createjs.Container();
+                  
+                    // 120 x 120
+                    var bitmap = new createjs.Bitmap(champImage);
+                    bitmap.regX = bitmap.regY = 0;
+                    bitmap.y = bitmap.x = 0;
+                    
+                    var maskShape = new createjs.Shape(
+                        new createjs.Graphics().f("#000").drawCircle(60,60,60)
+                    );
+                    bitmap.mask = maskShape;
+                    maskShape.scaleX = maskShape.scaleY = bitmap.scaleX = bitmap.scaleY = 0.2;
+                
+                    var border = new createjs.Shape();
+                    border.graphics
+                          .setStrokeStyle(3)
+                          // .beginStroke("#FFFFFF")
+                          .beginStroke(champColor(idx-1))
+                          .drawCircle(12, 12, 12);
+                    
+                    icons[idx].addChild(bitmap, border);
+                
+                    stage.addChild(icons[idx]);
+                    stage.update();
+                    
+                    icons[idx].x = position.x;
+                    icons[idx].y = position.y;
+                    
+                    stage.update();
+                }(stage, champs, i, canvPos(timeline[i][timeIndex].position));
+                
+                champImage.src = '/assets/champ' + champId +'.png';
+                stage.update();
+            }
+        }
+        
+        document.addEventListener('keydown', function(event) {
+            //left
+            if(event.keyCode == 37) {
+            	timeIndex -= 1;
+            }
+            //right
+            else if(event.keyCode == 39) {
+            	timeIndex += 1;
+            }
+            
+            if(timeIndex < 0) timeIndex = 0;
+            if(timeIndex >= timeline[1].length) timeIndex = timeline[1].length-1;
+            
+            movingAll(timeIndex);
+        });
+    </script>
+  </head>
+  <body onload="init();">
+    <h1><%= title %></h1>
+    <p>Welcome to <%= title %></p>
+    
+    <p>MAP SIZE is (maybe) 15,000 x 15,000</p>
+    <p>Canvas is 512 x 512</p>
+    
+    <p>게임 시작 후 <b id="curTimestamp">0분</b></p>
+    <canvas id="demoCanvas" width="512" height="512" style="border: 1px solid #ccc;">
+        alternate content
+    </canvas>
+    
+    <% for(var championIndex in timeline){ %>
+    <h1>Champion #<%= championIndex %></h1>
+    <pre>
+    <% for(var i in timeline[championIndex]){ %>
+    <%- JSON.stringify(timeline[championIndex][i]) %>
+    <% } %>
+    </pre>
+    <% } %>
+  </body>
+</html>
+
+<!--
+http://lol-godakes.c9users.io/match/2630912568/
+http://www.createjs.com/tutorials/Getting%20Started/
+-->
