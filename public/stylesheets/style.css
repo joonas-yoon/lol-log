@@ -1,8 +1,25 @@
 body {
-  padding: 50px;
-  font: 14px "Lucida Grande", Helvetica, Arial, sans-serif;
+    padding: 50px;
+    font: 14px "Lucida Grande", Helvetica, Arial, sans-serif;
+    background-color: #f3f9fe;
 }
 
 a {
-  color: #00B7FF;
+    color: #00B7FF;
+}
+
+.icon {
+    width:32px; height:32px; border-radius:3px;
+}
+
+.slider-selection {
+    background: #81bfde;
+}
+
+.slider-rangeHighlight {
+    background: #f70616;
+}
+
+.container {
+    min-width: 546px;
 }

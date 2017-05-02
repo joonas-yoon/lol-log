@@ -2,19 +2,41 @@
 <html>
   <head>
     <title><%= title %></title>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous" />
+    <link rel='stylesheet' href="https://cdnjs.cloudflare.com/ajax/libs/bootflat/2.0.4/css/bootflat.min.css" />
     <link rel='stylesheet' href='/stylesheets/style.css' />
+    
+    <script src="/javascripts/jquery.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js" integrity="sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa" crossorigin="anonymous"></script>
   </head>
   <body>
-    <form action="/summoner" method="POST">
-      <input type="text" name="summonerName" value="<%= summonerName %>" placeholder="소환사명" required />
-      <input type="submit" value="Search" />
-    </form>
-    <hr/>
-    
-    <% for(var g in games){ %>
-    <p>
-      <%= games[g].gameId %>번 게임 <a href="/match/<%= games[g].gameId %>">보기</a>
-    </p>
-    <% } %>
+    <div class="conatiner" style="max-width: 500px; margin:0 auto;">
+      <div class="row">
+        <form action="/summoner" method="POST">
+        <div class="input-group">
+          <input type="text" name="summonerName" value="<%= summonerName %>" placeholder="소환사명" class="form-control" required autofocus/>
+          <div class="input-group-btn">
+            <button type="submit" class="btn btn-primary">Search</button>
+          </div>
+        </div>
+        </form>
+      </div>
+      <hr/>
+      <% if( games.length ){ %>
+      <ul class="list-group">
+        <% for(var g in games){ %>
+        <li class="list-group-item">
+          <%= games[g].gameId %>번 게임
+          <div class="pull-right">
+            <a href="/match/<%= games[g].gameId %>" class="label label-primary">보기</a>
+            <a href="/match2/<%= games[g].gameId %>" class="label label-warning">beta</a>
+          </div>
+        </li>
+        <% } %>
+      </ul>
+      <% } else { %>
+      <h3 style="text-align:center;">검색된 결과가 없습니다</h3>
+      <% } %>
+    </div>
   </body>
 </html>

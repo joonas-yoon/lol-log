@@ -73,5 +73,24 @@ router.get('/match/:matchId/timeline/beauty', function(req, res, next) {
     });
 });
 
+router.get('/match/:matchId/snaps', function(req, res, next) {
+    LOL.getJsonTimelineOfMatch(req.params.matchId, function(err, result){
+        if(err)
+            res.status(404);
+        res.json(LOL.generateChampionsSnapshot(result)).end();
+    });
+});
+
+/**
+ * Test course
+ **/
+router.get('/match/:matchId/timeline2', function(req, res, next) {
+    LOL.getTimeline2OfMatch(req.params.matchId, function(err, result){
+        if(err)
+            res.status(404);
+        res.json(result).end();
+    });
+});
+
 
 module.exports = router;

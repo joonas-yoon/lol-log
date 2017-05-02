@@ -6,7 +6,7 @@
     <link rel='stylesheet' href="https://cdnjs.cloudflare.com/ajax/libs/bootflat/2.0.4/css/bootflat.min.css" />
     <link rel='stylesheet' href='/stylesheets/style.css' />
     
-    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.4/jquery.min.js"></script>
+    <script src="/javascripts/jquery.min.js"></script>
     <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js" integrity="sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa" crossorigin="anonymous"></script>
   </head>
   <body>
@@ -14,7 +14,7 @@
       <div class="row">
         <form action="/summoner" method="POST">
         <div class="input-group">
-          <input type="text" name="summonerName" placeholder="소환사명" required class="form-control">
+          <input type="text" name="summonerName" placeholder="소환사명" class="form-control" required autofocus>
           <div class="input-group-btn">
             <button type="submit" class="btn btn-primary">Search</button>
           </div>

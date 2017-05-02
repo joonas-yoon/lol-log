@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title><%= title %></title>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous" />
+    <link rel='stylesheet' href="https://cdnjs.cloudflare.com/ajax/libs/bootflat/2.0.4/css/bootflat.min.css" />
+    <link rel='stylesheet' href='https://cdnjs.cloudflare.com/ajax/libs/bootstrap-slider/9.4.1/css/bootstrap-slider.css' />
+    <link rel='stylesheet' href='/stylesheets/style.css' />
+    
+    <script src="/javascripts/jquery.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js" integrity="sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa" crossorigin="anonymous"></script>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-slider/9.4.1/bootstrap-slider.js"></script>
+    
+    <script src="https://code.createjs.com/easeljs-0.8.2.min.js"></script>
+    <script src="https://code.createjs.com/tweenjs-0.6.2.min.js"></script>
+    <script>
+        var timeline = JSON.parse('<%- JSON.stringify(timeline) %>');
+        var curMinute = 0;
+        var champs = {};
+        var stage;
+        
+        var eventTimeline = {};
+        
+        var champsSnapshots = <%- JSON.stringify(champsSnapshots || {}) %>;
+        
+        var participants = [
+          <% for(var i in participantsIdentities){ %>
+          <%- JSON.stringify(participantsIdentities[i].player || {}) %>,
+          <% } %>
+        ];
+        
+        (function(){
+            var ETL = <%- JSON.stringify(eventTimeline || {}) %>;
+            for(var i in ETL){
+                var e = ETL[i];
+                var min = Math.floor(e.timestamp / 60000);
+                if(typeof eventTimeline[min] != 'object') eventTimeline[min] = new Array();
+                eventTimeline[min].push(e);
+            }
+            
+            for(var i in ETL){
+                
+            }
+        })();
+        
+        function eventToString(e){
+          var time = new String("[" + timestampToString(e.timestamp) +"] ");
+          
+            if(e.eventType == 'CHAMPION_KILL'){
+                var r = new String(time + '<img src="/assets/championIcon/'+ summoners[e.killerId-1].championId +'.png" class="icon"/>');
+                for(var k in e.assistingParticipantIds){
+                    r += ' <img src="/assets/championIcon/'+ summoners[e.assistingParticipantIds[k]-1].championId +'.png" class="icon"/>';
+                }
+                r += '&nbsp; <img src="/images/crossed-sword.png" class="icon"/> &nbsp;'
+                r += '<img src="/assets/championIcon/'+ summoners[e.victimId-1].championId +'.png" class="icon"/>';
+                return r;
+            }
+            
+            return new String(
+                time + e.eventType +" / "
+              + (e.itemId ? "itemId: " + e.itemId +", " : "")
+              + (e.participantId ? "participantId: " + e.participantId +", " : "")
+            );
+        }
+        
+        function printEvents(index){
+            var el = document.getElementById('eventLog');
+            el.innerHTML = '';
+            if(index < 0) return;
+            var ETL = eventTimeline[index];
+            for(var e in ETL){
+                if( ETL[e].eventType != 'CHAMPION_KILL' ) continue;
+                el.innerHTML += '<p class="list-group-item">'+ eventToString(ETL[e]) +'</p>';
+            }
+            
+            for(var pid=1; pid<=10; ++pid){
+                var prefix = 'status_' + (pid-1) +'.';
+                
+                document.getElementById(prefix+'champion').src = '/assets/championIcon/' + summoners[pid-1].championId + '.png';
+                
+                document.getElementById(prefix+'level').innerHTML = champsSnapshots[index][pid].champLevel;
+                
+                document.getElementById(prefix+'kda').innerHTML =
+                    champsSnapshots[index][pid].kills + '/' +
+                    champsSnapshots[index][pid].deaths + '/' +
+                    champsSnapshots[index][pid].assists;
+                    
+                document.getElementById(prefix+'currentGold').innerHTML = champsSnapshots[index][pid].currentGold;
+            }
+        }
+        
+        var summoners = JSON.parse('<%- JSON.stringify(participants) %>');
+        var curTimestamp = 0;
+        
+        function timestampToString(time){
+            return new String(Math.floor(time / 60000) + "분 " + Math.floor((time % 60000)/1000) + "초");
+        }
+        
+        function changeTimestamp(index){
+            var curt = timeline[1][index].timestamp;
+            curTimestamp = Math.floor(curt / 60000);
+            totalTimestamp = timeline[1].length - 1;
+            
+            var percent = Math.round(curTimestamp/totalTimestamp*100*100)/100;
+            var cts = document.getElementById('curTimestamp');
+            cts.style.width = percent + '%';
+            cts.innerHTML
+                = curTimestamp +'분 / ' + totalTimestamp +'분'
+                + '(' + percent + '%)';
+        }
+        
+        function canvPos(obj){
+            if( typeof obj != 'object' ) return {};
+            
+            var canv = document.getElementById('demoCanvas'); 
+            var width = canv.width, height = canv.height;
+            
+            return {
+                x: (obj.x * width / 15000) - 6,
+                y: height - (obj.y * height / 15000) - 6
+            };
+        }
+        
+        function movingAll(index){
+            for(var i=1; i<=10; ++i){
+                tween(i, champs[i], canvPos(timeline[i][index].position));
+            }
+            changeTimestamp(index);
+        }
+        
+        var tweenAnim = {};
+        
+        function tween(id, el, nextPos){
+            if(tweenAnim[id]) tweenAnim[id].setPaused(true);
+            tweenAnim[id] = createjs.Tween.get(el, { loop: false })
+                .to({ x: nextPos.x, y: nextPos.y }, 1000, createjs.Ease.getPowInOut(4));
+            stage.update();
+        }
+        
+        function champColor(index){
+            return ['#F47983', '#89C4F4'][Math.floor(index/5)];
+        }
+        
+        function init() {
+            stage = new createjs.Stage("demoCanvas");
+            
+            createjs.Ticker.addEventListener("tick", stage);
+            createjs.Ticker.setFPS(60);
+            
+            var image = new Image();
+            image.src = "/images/map_512x512.jpg";
+            image.onload = function(event){
+                var image = event.target;
+                var bitmap = new createjs.Bitmap(image);
+                stage.addChild(bitmap);
+                stage.setChildIndex(bitmap, 0);
+                stage.update();
+            };
+            
+            for(var i=1; i<=10; ++i){
+                var champId = summoners[i-1].championId;
+                var champImage = new Image();
+                champImage.onload = function(stage, icons, idx, position){
+                    icons[idx] = new createjs.Container();
+                  
+                    // 120 x 120
+                    var bitmap = new createjs.Bitmap(champImage);
+                    bitmap.regX = bitmap.regY = 0;
+                    bitmap.y = bitmap.x = 0;
+                    
+                    var maskShape = new createjs.Shape(
+                        new createjs.Graphics().f("#000").drawCircle(60,60,60)
+                    );
+                    bitmap.mask = maskShape;
+                    maskShape.scaleX = maskShape.scaleY = bitmap.scaleX = bitmap.scaleY = 0.2;
+                
+                    var border = new createjs.Shape();
+                    border.graphics
+                          .setStrokeStyle(3)
+                          // .beginStroke("#FFFFFF")
+                          .beginStroke(champColor(idx-1))
+                          .drawCircle(12, 12, 12);
+                    
+                    icons[idx].addChild(bitmap, border);
+                
+                    stage.addChild(icons[idx]);
+                    stage.update();
+                    
+                    icons[idx].x = position.x;
+                    icons[idx].y = position.y;
+                    
+                    stage.update();
+                }(stage, champs, i, canvPos(timeline[i][curMinute].position));
+                
+                champImage.src = '/assets/championIcon/' + champId +'.png';
+                stage.update();
+            }
+        }
+    </script>
+  </head>
+  <body onload="init();">
+    <div class="container">
+      <h1 class="page-header"><%= title %></h1>
+      
+      <pre><% for(var i in match){ %><%= i %>: <%= match[i] %><br/><% } %></pre>
+      
+      <div class="row">
+        <% for(var team=0; team<2; ++team){ %>
+        <div class="col-md-6">
+          <h5 class="page-header"><%= ['RED', 'BLUE'][team] %></h5>
+          <table class="table">
+          <% for(var i in participantsIdentities){ %>
+          <% if(team == 0 && i >= 5) continue; %>
+          <% if(team == 1 && i < 5) continue; %>
+            <tr style="height: 36px;">
+              <td><img id="status_<%= i %>.champion" class="icon"/></td>
+              <td>Lv.<span id="status_<%= i %>.level">1</span></td>
+              <td id="status_<%= i %>.summonerName">
+                <% if( participantsIdentities[i].player ){ %>
+                <a href="/summoner/<%= participantsIdentities[i].player.summonerName %>">
+                  <%= participantsIdentities[i].player.summonerName %>
+                </a>
+                <% } else { %>
+                *소환사명 오류*
+                <% } %>
+              </td>
+              <td id="status_<%= i %>.kda">0/0/0</td>
+              <td>
+              [
+              <span id="status_<%= i %>.item0">0</span>
+              <span id="status_<%= i %>.item1">0</span>
+              <span id="status_<%= i %>.item2">0</span>
+              <span id="status_<%= i %>.item3">0</span>
+              <span id="status_<%= i %>.item4">0</span>
+              <span id="status_<%= i %>.item5">0</span>
+              <span id="status_<%= i %>.item6">0</span>
+              ]
+              </td>
+              <td>
+                <img src="https://cdn2.iconfinder.com/data/icons/outlined-valuable-items/200/monetary_gold_coins-128.png" style="width:20px;height:20px;">
+                <span id="status_<%= i %>.currentGold">0 </span>
+              </td>
+            </tr>
+          <% } %>
+          </table>
+        </div>
+        <% } %>
+      </div>
+      <hr/>
+      
+      <div class="progress" style="height: 32px;">
+        <div class="progress-bar" role="progressbar" id="curTimestamp" aria-valuemin="0" aria-valuemax="100" style="width: 0%; line-height: 32px;">
+          게임 시작 전
+        </div>
+      </div>
+      
+      <div class="row" style="padding: 15px 0;">
+        <div class="col-sm-12">
+          <input id="timeSlider" type="text" data-slider-id="timeSlider" style="width: 100%;" disabled/>
+        </div>
+      </div>
+      
+      <div class="row">
+        <div class="col-md-6" style="text-align: center;">
+          <canvas id="demoCanvas" width="512" height="512" style="border: 1px solid #ccc;">
+              alternate content
+          </canvas>
+        </div>
+        <div class="col-md-6">
+          <div class="panel panel-default">
+            <div class="panel-heading">
+              <h3 class="panel-title">지난 1분동안 일어난 일</h3>
+            </div>
+            <div class="panel-body" style="height: 478px;overflow-y: auto;">
+              <div class="list-group" id="eventLog"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
+  <script>
+      (function(){
+          var timeline2 = <%- JSON.stringify(timeline2) %>;
+          
+          var maxValue = (timeline[1].length - 1)*60;
+          
+          var highlights = [];
+          for(var e in timeline2){
+              highlights.push({
+                  start: e,
+                  end: parseInt(e)+1
+              });
+          }
+          
+          // Without JQuery
+          var slider = new Slider("#timeSlider",  {
+              tooltip: 'always',
+              formatter: function(time){
+                  return Math.floor(time / 60) + "분 " + Math.floor(time % 60) + "초";
+              },
+              id: 'timeSlider',
+              min: 0,
+              max: maxValue,
+              step: 10,
+              value: 14,
+              rangeHighlights: highlights,
+          });
+
+                  
+          for(var pid=1; pid<=10; ++pid){
+              document.getElementById('status_' + (pid-1) +'.champion').src = '/assets/championIcon/' + summoners[pid-1].championId + '.png';
+          }
+          
+          function updateOnRightMinute(min){
+              for(var pid=1; pid<=10; ++pid){
+                  var prefix = 'status_' + (pid-1) +'.';
+                  
+                  document.getElementById(prefix+'level').innerHTML = champsSnapshots[min][pid].champLevel;
+                  
+                  document.getElementById(prefix+'kda').innerHTML =
+                      champsSnapshots[min][pid].kills + '/' +
+                      champsSnapshots[min][pid].deaths + '/' +
+                      champsSnapshots[min][pid].assists;
+                      
+                  document.getElementById(prefix+'currentGold').innerHTML = champsSnapshots[min][pid].currentGold;
+              }
+          };
+
+          var t = setInterval(function(){
+              var time = slider.getValue()+1;
+              
+              if(time > maxValue){
+                  return clearInterval(t);
+              }
+              
+              slider.setValue(time);
+              if(time%60 == 0){
+                  var curMinute = Math.floor(time/60);
+                  movingAll(curMinute);
+                  updateOnRightMinute(curMinute);
+              }
+              
+              // console.log(time, timeline2[time], typeof timeline2[time]);
+              if(typeof timeline2[time] == "object"){
+                  var log = document.getElementById('eventLog');
+                  for(var sec in timeline2[time]){
+                      if( timeline2[time][sec].eventType != 'CHAMPION_KILL' ) continue;
+                      
+                      // 방법1) 미리 다 추가해놓고, 시간에 맞춰서 el.fade('show') 를 해도 됨.
+                      log.innerHTML
+                        = '<p class="list-group-item">'+ eventToString(timeline2[time][sec]) +'</p>'
+                        + log.innerHTML;
+                  }
+              }
+          }, 100);
+      })();
+  </script>
+</html>
+
+<!--
+http://lol-godakes.c9users.io/match/2630912568/
+http://www.createjs.com/tutorials/Getting%20Started/
+-->

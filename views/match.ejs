@@ -2,26 +2,109 @@
 <html>
   <head>
     <title><%= title %></title>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous" />
+    <link rel='stylesheet' href="https://cdnjs.cloudflare.com/ajax/libs/bootflat/2.0.4/css/bootflat.min.css" />
     <link rel='stylesheet' href='/stylesheets/style.css' />
+    
+    <script src="/javascripts/jquery.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js" integrity="sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa" crossorigin="anonymous"></script>
     
     <script src="https://code.createjs.com/easeljs-0.8.2.min.js"></script>
     <script src="https://code.createjs.com/tweenjs-0.6.2.min.js"></script>
     <script>
         var timeline = JSON.parse('<%- JSON.stringify(timeline) %>');
-        var timeIndex = 0;
+        var curMinute = 0;
         var champs = {};
         var stage;
         
+        var eventTimeline = {};
+        
+        var champsSnapshots = <%- JSON.stringify(champsSnapshots || {}) %>;
+        
+        var participants = [
+          <% for(var i in participantsIdentities){ %>
+          <%- JSON.stringify(participantsIdentities[i].player || {}) %>,
+          <% } %>
+        ];
+        
+        (function(){
+            var ETL = <%- JSON.stringify(eventTimeline || {}) %>;
+            for(var i in ETL){
+                var e = ETL[i];
+                var min = Math.floor(e.timestamp / 60000);
+                if(typeof eventTimeline[min] != 'object') eventTimeline[min] = new Array();
+                eventTimeline[min].push(e);
+            }
+            
+            for(var i in ETL){
+                
+            }
+        })();
+        
+        function eventToString(e){
+          var time = new String("[" + timestampToString(e.timestamp) +"] ");
+          
+            if(e.eventType == 'CHAMPION_KILL'){
+                var r = new String(time + '<img src="/assets/championIcon/'+ summoners[e.killerId-1].championId +'.png" class="icon"/>');
+                for(var k in e.assistingParticipantIds){
+                    r += ' <img src="/assets/championIcon/'+ summoners[e.assistingParticipantIds[k]-1].championId +'.png" class="icon"/>';
+                }
+                r += '&nbsp; <img src="/images/crossed-sword.png" class="icon"/> &nbsp;'
+                r += '<img src="/assets/championIcon/'+ summoners[e.victimId-1].championId +'.png" class="icon"/>';
+                return r;
+            }
+            
+            return new String(
+                time + e.eventType +" / "
+              + (e.itemId ? "itemId: " + e.itemId +", " : "")
+              + (e.participantId ? "participantId: " + e.participantId +", " : "")
+            );
+        }
+        
+        function printEvents(index){
+            var el = document.getElementById('eventLog');
+            el.innerHTML = '';
+            if(index < 0) return;
+            var ETL = eventTimeline[index];
+            for(var e in ETL){
+                if( ETL[e].eventType != 'CHAMPION_KILL' ) continue;
+                el.innerHTML += '<p class="list-group-item">'+ eventToString(ETL[e]) +'</p>';
+            }
+            
+            for(var pid=1; pid<=10; ++pid){
+                var prefix = 'status_' + (pid-1) +'.';
+                
+                document.getElementById(prefix+'champion').src = '/assets/championIcon/' + summoners[pid-1].championId + '.png';
+                
+                document.getElementById(prefix+'level').innerHTML = champsSnapshots[index][pid].champLevel;
+                
+                document.getElementById(prefix+'kda').innerHTML =
+                    champsSnapshots[index][pid].kills + '/' +
+                    champsSnapshots[index][pid].deaths + '/' +
+                    champsSnapshots[index][pid].assists;
+                    
+                document.getElementById(prefix+'currentGold').innerHTML = champsSnapshots[index][pid].currentGold;
+            }
+        }
+        
+        var summoners = JSON.parse('<%- JSON.stringify(participants) %>');
         var curTimestamp = 0;
+        
+        function timestampToString(time){
+            return new String(Math.floor(time / 60000) + "분 " + Math.floor((time % 60000)/1000) + "초");
+        }
         
         function changeTimestamp(index){
             var curt = timeline[1][index].timestamp;
             curTimestamp = Math.floor(curt / 60000);
             totalTimestamp = timeline[1].length - 1;
             
-            document.getElementById('curTimestamp').innerHTML
+            var percent = Math.round(curTimestamp/totalTimestamp*100*100)/100;
+            var cts = document.getElementById('curTimestamp');
+            cts.style.width = percent + '%';
+            cts.innerHTML
                 = curTimestamp +'분 / ' + totalTimestamp +'분'
-                + '(' + Math.round(curTimestamp/totalTimestamp*100*100)/100 + '%)';
+                + '(' + percent + '%)';
         }
         
         function canvPos(obj){
@@ -37,7 +120,6 @@
         }
         
         function movingAll(index){
-            console.log(index);
             for(var i=1; i<=10; ++i){
                 tween(i, champs[i], canvPos(timeline[i][index].position));
             }
@@ -74,7 +156,7 @@
             };
             
             for(var i=1; i<=10; ++i){
-                var champId = ([1, 2])[Math.floor(Math.random()*2)];
+                var champId = summoners[i-1].championId;
                 var champImage = new Image();
                 champImage.onload = function(stage, icons, idx, position){
                     icons[idx] = new createjs.Container();
@@ -106,9 +188,9 @@
                     icons[idx].y = position.y;
                     
                     stage.update();
-                }(stage, champs, i, canvPos(timeline[i][timeIndex].position));
+                }(stage, champs, i, canvPos(timeline[i][curMinute].position));
                 
-                champImage.src = '/assets/champ' + champId +'.png';
+                champImage.src = '/assets/championIcon/' + champId +'.png';
                 stage.update();
             }
         }
@@ -116,40 +198,93 @@
         document.addEventListener('keydown', function(event) {
             //left
             if(event.keyCode == 37) {
-            	timeIndex -= 1;
+            	  curMinute -= 1;
             }
             //right
             else if(event.keyCode == 39) {
-            	timeIndex += 1;
+            	  curMinute += 1;
             }
             
-            if(timeIndex < 0) timeIndex = 0;
-            if(timeIndex >= timeline[1].length) timeIndex = timeline[1].length-1;
+            if(curMinute < 0) curMinute = 0;
+            if(curMinute >= timeline[1].length) curMinute = timeline[1].length-1;
             
-            movingAll(timeIndex);
+            movingAll(curMinute);
+            printEvents(curMinute-1);
         });
     </script>
   </head>
   <body onload="init();">
-    <h1><%= title %></h1>
-    <p>Welcome to <%= title %></p>
-    
-    <p>MAP SIZE is (maybe) 15,000 x 15,000</p>
-    <p>Canvas is 512 x 512</p>
-    
-    <p>게임 시작 후 <b id="curTimestamp">0분</b></p>
-    <canvas id="demoCanvas" width="512" height="512" style="border: 1px solid #ccc;">
-        alternate content
-    </canvas>
-    
-    <% for(var championIndex in timeline){ %>
-    <h1>Champion #<%= championIndex %></h1>
-    <pre>
-    <% for(var i in timeline[championIndex]){ %>
-    <%- JSON.stringify(timeline[championIndex][i]) %>
-    <% } %>
-    </pre>
-    <% } %>
+    <div class="container">
+      <h1 class="page-header"><%= title %></h1>
+      
+      <pre><% for(var i in match){ %><%= i %>: <%= match[i] %><br/><% } %></pre>
+      
+      <div class="row">
+        <% for(var team=0; team<2; ++team){ %>
+        <div class="col-md-6">
+          <h5 class="page-header"><%= ['RED', 'BLUE'][team] %></h5>
+          <% for(var i in participantsIdentities){ %>
+          <% if(team == 0 && i >= 5) continue; %>
+          <% if(team == 1 && i < 5) continue; %>
+            <p style="height: 36px;">
+              <img id="status_<%= i %>.champion" class="icon"/>
+              
+              Lv.<span id="status_<%= i %>.level">0</span>
+              
+              <span id="status_<%= i %>.summonerName">
+                <% if( participantsIdentities[i].player ){ %>
+                <a href="/summoner/<%= participantsIdentities[i].player.summonerName %>">
+                  <%= participantsIdentities[i].player.summonerName %>
+                </a>
+                <% } else { %>
+                *소환사명 오류*
+                <% } %>
+              </span>
+              
+              <span id="status_<%= i %>.kda">0/0/0</span>
+              
+              [
+              <span id="status_<%= i %>.item0">0</span>
+              <span id="status_<%= i %>.item1">0</span>
+              <span id="status_<%= i %>.item2">0</span>
+              <span id="status_<%= i %>.item3">0</span>
+              <span id="status_<%= i %>.item4">0</span>
+              <span id="status_<%= i %>.item5">0</span>
+              <span id="status_<%= i %>.item6">0</span>
+              ]
+              
+              <span id="status_<%= i %>.currentGold">0 </span> G.
+            </p>
+          <% } %>
+        </div>
+        <% } %>
+      </div>
+      <hr/>
+      
+      <div class="progress" style="height: 32px;">
+        <div class="progress-bar" role="progressbar" id="curTimestamp" aria-valuemin="0" aria-valuemax="100" style="width: 0%; line-height: 32px;">
+          게임 시작 전
+        </div>
+      </div>
+      
+      <div class="row">
+        <div class="col-md-6" style="text-align: center;">
+          <canvas id="demoCanvas" width="512" height="512" style="border: 1px solid #ccc;">
+              alternate content
+          </canvas>
+        </div>
+        <div class="col-md-6">
+          <div class="panel panel-default">
+            <div class="panel-heading">
+              <h3 class="panel-title">지난 1분동안 일어난 일</h3>
+            </div>
+            <div class="panel-body" style="height: 478px;overflow-y: auto;">
+              <div class="list-group" id="eventLog"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   </body>
 </html>
 
